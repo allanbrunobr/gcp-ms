@@ -1,0 +1,11 @@
+runtime: java17
+env: standard
+
+handlers:
+  - url: /.*
+    script: auto
+
+basic_scaling:
+  max_instances: 3
+  idle_timeout: 10m
+service_account: app-springboot-project@appspot.gserviceaccount.com

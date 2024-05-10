@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en" charset="UTF-8">
+<head>
+
+    <th:block th:replace="fragments/common-head-libs :: common-head-libs"></th:block>
+
+  <title>e-Core - GCP</title>
+
+</head>
+<body>
+<th:block th:replace="fragments/menu-fragment :: menu"></th:block>
+
+<div th:if="${translatedResult != null}">
+    <p th:text="${translatedResult}"></p>
+</div>
+<div th:unless="${translatedResult != null}">
+    <p>Translating in progress...</p>
+</div>
+
+<th:block th:replace="fragments/commons-js :: commons-js"></th:block>
+</body>
+
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en" charset="UTF-8">
+<head>
+
+    <th:block th:replace="fragments/common-head-libs :: common-head-libs"></th:block>
+
+    <title>e-Core - GCP</title>
+</head>
+<body>
+<th:block th:replace="fragments/menu-fragment :: menu"></th:block>
+
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="card">
+                <div class="card-header">
+                    Translator
+                </div>
+                <div class="card-body">
+                    <form th:action="@{/translatorText}" method="post">
+                        <div class="form-group">
+                            <label for="textToTranslate">Your text to translate:</label>
+                            <textarea class="form-control" id="textToTranslate" name="textToTranslate" rows="5" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="languages">Choose the language you want to translate to:</label>
+                            <select id="languages" name="targetLanguageCode" required class="form-control"></select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Translate</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<th:block th:replace="~{fragments/commons-js :: commons-js}"></th:block>
+<script>
+    fetch('/languages')
+        .then(response => response.json())
+        .then(languages => {
+            const selectElement = document.getElementById('languages');
+            languages.forEach(language => {
+                const optionElement = document.createElement('option');
+                optionElement.value = language;
+                optionElement.textContent = language;
+                selectElement.appendChild(optionElement);
+            });
+        })
+        .catch(error => console.error('Error fetching languages:', error));
+</script>
+
+</body>
+
+</html>
