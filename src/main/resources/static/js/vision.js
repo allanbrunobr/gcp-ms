@@ -4,10 +4,8 @@
 
     stompClient.connect({}, function(frame) {
 
-    console.log('Connected successfully to WebSocket');
     stompClient.subscribe('/topic/analysisResult', function(message) {
         var eventData = JSON.parse(message.body);
-        console.log("Result received:", eventData);
 
         document.getElementById('result-container').innerText = getEmotionAnalysis(JSON.stringify(eventData));
         document.getElementById('loading-container').style.display = 'none';

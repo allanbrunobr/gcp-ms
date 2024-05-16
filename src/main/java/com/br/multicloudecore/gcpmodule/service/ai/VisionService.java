@@ -4,7 +4,7 @@ import com.br.multicloudecore.gcpmodule.events.EventBus;
 import com.br.multicloudecore.gcpmodule.exceptions.PlacesSearchException;
 import com.br.multicloudecore.gcpmodule.exceptions.UploadFileToStorageException;
 import com.br.multicloudecore.gcpmodule.interfaces.EventListener;
-import com.br.multicloudecore.gcpmodule.models.vision.FaceDetectionMessage;
+import com.br.multicloudecore.gcpmodule.models.vision.facerecognition.FaceDetectionMessage;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;

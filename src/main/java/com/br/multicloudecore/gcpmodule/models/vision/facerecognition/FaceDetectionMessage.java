@@ -1,4 +1,4 @@
-package com.br.multicloudecore.gcpmodule.models.vision;
+package com.br.multicloudecore.gcpmodule.models.vision.facerecognition;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;

@@ -2,7 +2,7 @@ package com.br.multicloudecore.gcpmodule.components;
 
 import com.br.multicloudecore.gcpmodule.events.EventBus;
 import com.br.multicloudecore.gcpmodule.exceptions.ResultVisionException;
-import com.br.multicloudecore.gcpmodule.models.vision.FaceDetectionMessage;
+import com.br.multicloudecore.gcpmodule.models.vision.facerecognition.FaceDetectionMessage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.gax.core.CredentialsProvider;
@@ -11,12 +11,15 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Subscriber;
 import com.google.pubsub.v1.ProjectSubscriptionName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The ResultSubscriber class is responsible for subscribing to different Google Pub/Sub
@@ -73,6 +76,9 @@ public class ResultSubscriber {
 
   private final SimpMessagingTemplate simpMessagingTemplate;
   private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ConcurrentHashMap<String, Subscriber> subscribers = new ConcurrentHashMap<>();
+  private static final Logger logger = LoggerFactory.getLogger(ResultSubscriber.class);
+
 
   /**
    * Subscribes to a specific Google Pub/Sub subscription and processes the received messages.
@@ -86,8 +92,14 @@ public class ResultSubscriber {
               .create(GoogleCredentials.fromStream(new FileInputStream(
           "src/main/resources/keys/appubsub-admin-springboot-project-03da67dd523b.json")));
 
+
       ProjectSubscriptionName subscriptionName = ProjectSubscriptionName
                     .of(projectId, subscriptionId);
+
+      if (subscribers.containsKey(subscriptionId)) {
+        logger.warn("Já existe um assinante para a assinatura: {}", subscriptionId);
+        return;
+      }
       Subscriber subscriber = Subscriber
                     .newBuilder(subscriptionName, (MessageReceiver) (message, consumer) -> {
                       String jsonData = message.getData().toStringUtf8();
@@ -103,9 +115,12 @@ public class ResultSubscriber {
                       }
                       consumer.ack();
                     }).setCredentialsProvider(credentialsProvider).build();
+
+      subscribers.put(subscriptionId, subscriber);
+      // Inicia o assinante
       subscriber.startAsync().awaitRunning();
     } catch (IOException e) {
-      e.printStackTrace();
+      logger.error("Erro ao criar o assinante: {}", e.getMessage(), e);
     }
   }
 }
