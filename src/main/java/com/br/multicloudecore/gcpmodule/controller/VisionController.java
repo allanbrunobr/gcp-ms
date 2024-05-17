@@ -47,8 +47,15 @@ public class VisionController {
     ModelAndView modelAndView = new ModelAndView("ai/vision/vision-face-result");
     try {
       visionService.store(file);
+      byte[] imageBytes = file.getBytes();
+
+      String base64EncodedImage = visionService.writeWithFaces(imageBytes, visionService.detectFaces(imageBytes));
+
       message = "Upload do arquivo realizado com sucesso! " + file.getOriginalFilename() + "!";
+      modelAndView.addObject("base64EncodedImage", base64EncodedImage);
       redirectAttributes.addFlashAttribute("message", message);
+
+
     } catch (Exception e) {
       message = "Falha ao fazer upload do arquivo " + file.getOriginalFilename() + "!";
       redirectAttributes.addFlashAttribute(Constants.ERROR_MESSAGE_ATTRIBUTE, message);

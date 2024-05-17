@@ -18,6 +18,6 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class FaceDetectionMessage {
   private String imageUrl;
-  private List<FaceData> faceData;
+  private List<FaceData> facesData;
 }
 
