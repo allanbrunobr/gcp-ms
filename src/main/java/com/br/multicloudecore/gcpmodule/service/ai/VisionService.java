@@ -166,29 +166,37 @@ public class VisionService implements EventListener<FaceDetectionMessage> {
         return Collections.emptyList();
     }
 
-    public String writeWithFaces(byte[] imageBytes, List<FaceAnnotation> faces)
-            throws IOException {
-        BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
-        annotateWithFaces(image, faces);
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ImageIO.write(image, "jpg", baos);
-        return Base64.getEncoder().encodeToString(baos.toByteArray());
-    }
+  public String writeWithFaces(byte[] imageBytes, List<FaceAnnotation> faces) throws IOException {
+    BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
+    annotateWithFaces(image, faces);
+    return encodeImageToBase64(image);
+  }
 
-    public static void annotateWithFaces(BufferedImage img, List<FaceAnnotation> faces) {
-        for (FaceAnnotation face : faces) {
-            annotateWithFace(img, face);
-        }
+  private void annotateWithFaces(BufferedImage image, List<FaceAnnotation> faces) {
+    for (FaceAnnotation face : faces) {
+      annotateWithFace(image, face);
     }
+  }
 
-    private static void annotateWithFace(BufferedImage img, FaceAnnotation face) {
-        Graphics2D gfx = img.createGraphics();
-        Polygon poly = new Polygon();
-        for (Vertex vertex : face.getFdBoundingPoly().getVerticesList()) {
-            poly.addPoint(vertex.getX(), vertex.getY());
-        }
-        gfx.setStroke(new BasicStroke(5));
-        gfx.setColor(new Color(0x00ff00));
-        gfx.draw(poly);
+  private void annotateWithFace(BufferedImage image, FaceAnnotation face) {
+    Graphics2D graphics = image.createGraphics();
+    graphics.setStroke(new BasicStroke(5));
+    graphics.setColor(new Color(0x00ff00));
+    graphics.draw(createPolygonFromVertices(face.getFdBoundingPoly().getVerticesList()));
+    graphics.dispose();
+  }
+
+  private Polygon createPolygonFromVertices(List<Vertex> vertices) {
+    Polygon polygon = new Polygon();
+    for (Vertex vertex : vertices) {
+      polygon.addPoint(vertex.getX(), vertex.getY());
     }
+    return polygon;
+  }
+
+  private String encodeImageToBase64(BufferedImage image) throws IOException {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    ImageIO.write(image, "jpg", baos);
+    return Base64.getEncoder().encodeToString(baos.toByteArray());
+  }
 }

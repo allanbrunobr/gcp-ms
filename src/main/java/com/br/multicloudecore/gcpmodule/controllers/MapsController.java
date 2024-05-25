@@ -1,4 +1,4 @@
-package com.br.multicloudecore.gcpmodule.controller;
+package com.br.multicloudecore.gcpmodule.controllers;
 
 import com.br.multicloudecore.gcpmodule.exceptions.PlacesSearchException;
 import com.br.multicloudecore.gcpmodule.models.maps.PlaceSearchResult;

@@ -3,17 +3,49 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>e-Core - GCP</title>
+    <title>e-Core - GCP Solutions</title>
     <th:block th:replace="~{fragments/common-head-libs :: common-head-libs}"></th:block>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 </head>
 <body>
 <th:block th:replace="fragments/menu-fragment :: menu"></th:block>
-<div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
-    <div class="p-2">
-        <img src="/images/ecore.png" alt="Imagem" class="img-fluid rounded-circle" style="width: 250px; height: 250px;">
+<div class="container-fluid my-5">
+    <div class="row justify-content-center align-items-center">
+        <div class="col-md-8 d-flex flex-column justify-content-center align-items-center">
+            <h1 class="display-4 mb-4 text-center">Welcome to e-Core GCP</h1>
+            <p class="lead mb-4 text-center">Discover the power of GCP and how e-Core can help you unlock its full potential.</p>
+            <div class="d-flex">
+                <a href="#" class="btn btn-primary mr-3">Learn More</a>
+                <a href="#" class="btn button-secondary">Get Started</a>
+            </div>
+        </div>
     </div>
-
 </div>
+
+<div class="container-fluid bg-light py-5">
+    <div class="container">
+        <h2 class="text-center mb-4">Why Choose e-Core?</h2>
+        <div class="row">
+            <div class="col-md-4 text-center">
+                <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-primary"></i>
+                <h4>Seamless Cloud Migration</h4>
+                <p>Our experts will guide you through a smooth transition to the GCP cloud.</p>
+            </div>
+            <div class="col-md-4 text-center">
+                <i class="fas fa-cog fa-3x mb-3 text-primary"></i>
+                <h4>Optimized GCP Solutions</h4>
+                <p>We'll help you leverage GCP services to drive your business forward.</p>
+            </div>
+            <div class="col-md-4 text-center">
+                <i class="fas fa-chart-line fa-3x mb-3 text-primary"></i>
+                <h4>Continuous Optimization</h4>
+                <p>Our team will continuously monitor and optimize your GCP infrastructure.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 <th:block th:replace="~{fragments/commons-js :: commons-js}"></th:block>
 
 </body>

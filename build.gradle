@@ -52,6 +52,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-logging'
     implementation 'org.springframework.boot:spring-boot-starter-web'
 
+    implementation 'org.slf4j:slf4j-api:2.0.13'
+    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.5.0'
+
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
