@@ -1,6 +1,6 @@
 package com.br.multicloudecore.gcpmodule.controllers;
 
-import com.br.multicloudecore.gcpmodule.config.Constants;
+import com.br.multicloudecore.gcpmodule.utils.Constants;
 import com.br.multicloudecore.gcpmodule.exceptions.TranslationException;
 import com.br.multicloudecore.gcpmodule.service.ai.TranslatorService;
 import com.google.cloud.translate.v3.Translation;

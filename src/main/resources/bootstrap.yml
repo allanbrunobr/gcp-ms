@@ -1,0 +1,14 @@
+  spring:
+    application:
+      name: gcp-ms
+    cloud:
+      vault:
+        host: localhost
+        port: 8200
+        scheme: http
+        generic:
+          enabled: true
+          backend: secret
+          default-context: application
+          profile-separator: "-"
+          profiles: gcp

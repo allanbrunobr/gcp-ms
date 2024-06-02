@@ -1,4 +1,4 @@
-package com.br.multicloudecore.gcpmodule.config;
+package com.br.multicloudecore.gcpmodule.utils;
 
 /**
  * Constants class represents a collection of constant values used in the application.

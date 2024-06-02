@@ -2,6 +2,7 @@ package com.br.multicloudecore.gcpmodule.models.maps;
 
 
 import com.br.multicloudecore.gcpmodule.exceptions.PlacesSearchException;
+import com.br.multicloudecore.gcpmodule.security.service.VaultKeyValueService;
 import com.google.maps.GeoApiContext;
 import com.google.maps.PlacesApi;
 import com.google.maps.errors.ApiException;
@@ -28,13 +29,15 @@ public class PlacesSearchService {
   @Getter
   private final GeoApiContext context;
 
-
+  private VaultKeyValueService vaultKeyValueService;
   /**
    * Constructs a new PlacesSearchService with the provided API key.
    *
    * @param apiKey The API key for accessing the Google Places API.
    */
-  public PlacesSearchService(@Value("${google.api.key.places}") String apiKey) {
+  public PlacesSearchService(@Value("${google.api.key.places}") String apiKey, VaultKeyValueService vaultKeyValueService) {
+
+    this.vaultKeyValueService = vaultKeyValueService;
     this.context = new GeoApiContext.Builder().apiKey(apiKey).build();
   }
 

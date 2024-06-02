@@ -1,9 +1,16 @@
 package com.br.multicloudecore.gcpmodule.controllers;
 
-import com.br.multicloudecore.gcpmodule.config.Constants;
+import com.br.multicloudecore.gcpmodule.utils.Constants;
 import com.br.multicloudecore.gcpmodule.exceptions.PlacesSearchException;
 import com.br.multicloudecore.gcpmodule.models.vision.landmarks.LandmarkDetectionMessage;
+import com.br.multicloudecore.gcpmodule.security.service.DynamicGCPServiceAccountKeyService;
 import com.br.multicloudecore.gcpmodule.service.ai.VisionService;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -12,7 +19,10 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Base64;
+import java.util.UUID;
 
 /**
  * The VisionController class handles requests related to image processing and detection.
@@ -22,13 +32,20 @@ public class VisionController {
 
   private final VisionService visionService;
 
+  @Value("${bucket.name}")
+  private String bucketName;
+
+  private final DynamicGCPServiceAccountKeyService dynamicGCPServiceAccountKeyService;
+
+
   /**
    * Constructs a new VisionController with the specified VisionService.
    *
    * @param visionService The VisionService to be used by the controller.
    */
-  public VisionController(VisionService visionService) {
+  public VisionController(VisionService visionService, DynamicGCPServiceAccountKeyService dynamicGCPServiceAccountKeyService) {
     this.visionService = visionService;
+      this.dynamicGCPServiceAccountKeyService = dynamicGCPServiceAccountKeyService;
   }
 
   /**
@@ -46,7 +63,24 @@ public class VisionController {
     String message;
     ModelAndView modelAndView = new ModelAndView("ai/vision/vision-face-result");
     try {
-      visionService.store(file);
+      String serviceAccountKey = dynamicGCPServiceAccountKeyService.getGcpServiceAccountKey()
+              .orElseThrow(() -> new RuntimeException("Failed to retrieve GCP service account key from Vault"));
+      byte[] decodedKey = Base64.getDecoder().decode(serviceAccountKey);
+
+      GoogleCredentials googleCredentials = GoogleCredentials.fromStream(new ByteArrayInputStream(decodedKey))
+              .createScoped("https://www.googleapis.com/auth/cloud-platform");
+
+      Storage storage = StorageOptions.newBuilder()
+              .setCredentials(googleCredentials)
+              .setProjectId("app-springboot-project")
+              .build()
+              .getService();
+
+      String fileName = UUID.randomUUID() + file.getOriginalFilename();
+      BlobId blobId = BlobId.of(bucketName, fileName);
+      BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
+      storage.create(blobInfo, file.getBytes());
+
       byte[] imageBytes = file.getBytes();
 
       String base64EncodedImage = visionService.writeWithFaces(imageBytes, visionService.detectFaces(imageBytes));

@@ -1,6 +1,6 @@
 package com.br.multicloudecore.gcpmodule.controllers;
 
-import com.br.multicloudecore.gcpmodule.config.Constants;
+import com.br.multicloudecore.gcpmodule.utils.Constants;
 import com.br.multicloudecore.gcpmodule.exceptions.SentimentAnalysisException;
 import com.br.multicloudecore.gcpmodule.models.sentiment.SentimentDescription;
 import com.br.multicloudecore.gcpmodule.service.ai.AnalyzeSentimentService;
