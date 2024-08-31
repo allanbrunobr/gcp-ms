@@ -14,7 +14,7 @@ if (loginForm) {
                 if (user.emailVerified) {
                     // O endereço de email do usuário foi confirmado
                     console.log('Usuário logado com sucesso:', user);
-                    window.location.href = "/indexGCP"; // Redireciona para a página principal
+                    window.location.href = "http://localhost:3001"; // Redireciona para a página principal
                 } else {
                     const message = 'Endereço de email não confirmado ' + user.email;
                     // O endereço de email do usuário não foi confirmado
