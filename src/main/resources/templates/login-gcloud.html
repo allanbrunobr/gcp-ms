@@ -5,7 +5,6 @@
     <title>e-Core - GCP</title>
     <th:block th:replace="~{fragments/common-head-libs :: common-head-libs}"></th:block>
      <script>
-        // Recupera a mensagem da URL
         const urlParams = new URLSearchParams(window.location.search);
         const message = urlParams.get('message');
     </script>
@@ -77,6 +76,6 @@
         }
     });
 </script>
-<th:block th:replace="~{fragments/commons-js :: commons-js}"></th:block>
+    <th:block th:replace="~{fragments/commons-js :: commons-js}"></th:block>
 </body>
 </html>

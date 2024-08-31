@@ -9,7 +9,7 @@ if (googleLoginBtn) {
                 const credential = firebase.auth.GoogleAuthProvider.credentialFromResult(result);
                 const user = result.user;
                 console.log(user);
-                window.location.href = "/indexGCP";
+                window.location.href = "http://localhost:3001";
 
             }).catch((error) => {
                 const errorCode = error.code;

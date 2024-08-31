@@ -29,17 +29,12 @@ public class PlacesSearchService {
   @Getter
   private final GeoApiContext context;
 
-  private VaultKeyValueService vaultKeyValueService;
-  /**
-   * Constructs a new PlacesSearchService with the provided API key.
-   *
-   * @param apiKey The API key for accessing the Google Places API.
-   */
-  public PlacesSearchService(@Value("${google.api.key.places}") String apiKey, VaultKeyValueService vaultKeyValueService) {
 
-    this.vaultKeyValueService = vaultKeyValueService;
-    this.context = new GeoApiContext.Builder().apiKey(apiKey).build();
-  }
+    public PlacesSearchService(VaultKeyValueService vaultKeyValueService) {
+      String apiKey = vaultKeyValueService.getSecretValue("google_api_key_places");
+      this.context = new GeoApiContext.Builder().apiKey(apiKey).build();
+
+    }
 
   /**
    * Searches for places based on the given latitude and longitude coordinates.

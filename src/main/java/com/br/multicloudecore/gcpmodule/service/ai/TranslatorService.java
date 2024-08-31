@@ -1,5 +1,6 @@
 package com.br.multicloudecore.gcpmodule.service.ai;
 
+import com.br.multicloudecore.gcpmodule.exceptions.TranslationException;
 import com.google.cloud.translate.v3.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
@@ -33,8 +34,8 @@ public class TranslatorService {
    */
   @Async
   public CompletableFuture<List<Translation>> translateTextAsync(String text,
-                                                                   String targetLanguageCode)
-            throws Exception {
+                                                                 String targetLanguageCode)
+          throws TranslationException, IOException {
 
     try (TranslationServiceClient client = TranslationServiceClient.create()) {
       LocationName parent = LocationName.of(projectId, GLOBAL);
@@ -61,7 +62,7 @@ public class TranslatorService {
    * @return The language code of the detected language.
    * @throws Exception If an error occurs during language detection.
    */
-  public String languageDetector(String text) throws Exception {
+  public String languageDetector(String text) throws TranslationException, IOException {
     try (TranslationServiceClient client = TranslationServiceClient.create()) {
       LocationName parent = LocationName.of(projectId, GLOBAL);
       DetectLanguageRequest request =

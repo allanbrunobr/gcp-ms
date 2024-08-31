@@ -1,11 +1,11 @@
 package com.br.multicloudecore.gcpmodule.security.service;
 
-import com.br.multicloudecore.gcpmodule.models.security.KeyValueData;
 import org.springframework.stereotype.Service;
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.support.VaultResponseSupport;
 
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class VaultKeyValueService {
@@ -17,13 +17,11 @@ public class VaultKeyValueService {
     }
 
     public String getSecretValue(String key) {
-        VaultResponseSupport<KeyValueData> response = vaultTemplate.read("secret/gcp", KeyValueData.class);
-        if (response != null
-                && response.getData() != null) {
-                return response.getData().getData().get(key);
-            }
-
-        throw new RuntimeException("Failed to retrieve secret value from Vault");
+        VaultResponseSupport<KeyValueData> response = vaultTemplate.read("secret/data/gcp", KeyValueData.class);
+        return response == null ? null : Optional.ofNullable(response.getData())
+                .map(KeyValueData::getData)
+                .map(data -> data.get(key))
+                .orElse(null);
     }
 
     public static class KeyValueData {

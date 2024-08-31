@@ -116,7 +116,7 @@ public class ResultSubscriber {
                       consumer.ack();
                     }).setCredentialsProvider(credentialsProvider).build();
 
-      subscribers.put(subscriptionId, subscriber);
+      subscribers.putIfAbsent(subscriptionId, subscriber);
       subscriber.startAsync().awaitRunning();
     } catch (IOException e) {
       logger.error("Erro ao criar o assinante: {}", e.getMessage(), e);

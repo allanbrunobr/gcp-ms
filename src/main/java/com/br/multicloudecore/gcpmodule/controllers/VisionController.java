@@ -12,6 +12,7 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,6 +29,7 @@ import java.util.UUID;
  * The VisionController class handles requests related to image processing and detection.
  */
 @RestController
+@CrossOrigin(origins = "http://localhost:3001")
 public class VisionController {
 
   private final VisionService visionService;
@@ -70,7 +72,7 @@ public class VisionController {
       GoogleCredentials googleCredentials = GoogleCredentials.fromStream(new ByteArrayInputStream(decodedKey))
               .createScoped("https://www.googleapis.com/auth/cloud-platform");
 
-      Storage storage = StorageOptions.newBuilder()
+        Storage storage = StorageOptions.newBuilder()
               .setCredentials(googleCredentials)
               .setProjectId("app-springboot-project")
               .build()

@@ -9,9 +9,10 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
-import com.google.cloud.vision.v1.*;
 import com.google.cloud.vision.v1.Image;
+import com.google.cloud.vision.v1.*;
 import com.google.protobuf.ByteString;
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,11 +25,10 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Collections;
+import java.nio.file.Path;
+import java.nio.file.attribute.*;
 import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 
@@ -51,6 +51,8 @@ public class VisionService implements EventListener<FaceDetectionMessage> {
 
     @Value("${bucket.name}")
     private String bucketName;
+
+    private static final String SECURE_DIR_CREATION_ERROR = "Failed to set directory permissions: ";
 
 
     /**
@@ -93,16 +95,57 @@ public class VisionService implements EventListener<FaceDetectionMessage> {
      */
     public CompletableFuture<List<AnnotateImageResponse>> detectLandmarkImage(
             MultipartFile file) throws IOException {
-        File tempFile = Files.createTempFile("temp", ".jpg").toFile();
+
+        Path tempDir = createSecureTempDirectory();
+        File tempFile = createSecureTempFile(tempDir);
+
         file.transferTo(tempFile);
         String filePath = tempFile.getAbsolutePath();
         List<AnnotateImageResponse> responses = detectLandmarks(filePath);
+
         try {
             Files.delete(tempFile.toPath());
         } catch (IOException e) {
             throw new UploadFileToStorageException("Fail to delete temp file: " + tempFile.toPath(), e);
         }
+
         return CompletableFuture.completedFuture(responses);
+    }
+
+    private Path createSecureTempDirectory() throws IOException {
+        Set<PosixFilePermission> dirPerms = PosixFilePermissions.fromString("rwx------");
+        Path tempDir = Files.createTempDirectory("secure-temp-dir", PosixFilePermissions.asFileAttribute(dirPerms));
+        configureDirectoryPermissions(tempDir);
+        return tempDir;
+    }
+    private void configureDirectoryPermissions(Path tempDir) throws IOException {
+        File tempDirFile = tempDir.toFile();
+
+        if (!SystemUtils.IS_OS_UNIX) {
+            Set<AclEntryPermission> perms = EnumSet.of(AclEntryPermission.READ_ACL, AclEntryPermission.WRITE_ACL);
+            AclEntry.Builder builder = AclEntry.newBuilder();
+            builder.setType(AclEntryType.DENY);
+            builder.setPrincipal(tempDir.getFileSystem().getUserPrincipalLookupService().lookupPrincipalByName("Everyone"));
+            builder.setPermissions(perms);
+            AclEntry aclEntry = builder.build();
+
+            Files.getFileAttributeView(tempDir, AclFileAttributeView.class)
+                    .setAcl(Collections.singletonList(aclEntry));
+        }
+        if (!tempDirFile.setReadable(true, true)) {
+            throw new IOException(SECURE_DIR_CREATION_ERROR + "Failed to set directory as non-readable for others: " + tempDirFile.getAbsolutePath());
+        }
+        if (!tempDirFile.setWritable(true, true)) {
+            throw new IOException(SECURE_DIR_CREATION_ERROR + "Failed to set directory as non-writable for others: " + tempDirFile.getAbsolutePath());
+        }
+        if (!tempDirFile.setExecutable(true, true)) {
+            throw new IOException(SECURE_DIR_CREATION_ERROR + "Failed to set directory as non-executable for others: " + tempDirFile.getAbsolutePath());
+        }
+    }
+
+    private File createSecureTempFile(Path tempDir) throws IOException {
+        Set<PosixFilePermission> filePerms = PosixFilePermissions.fromString("rw-------");
+        return Files.createTempFile(tempDir, "temp", ".jpg", PosixFilePermissions.asFileAttribute(filePerms)).toFile();
     }
 
     /**
@@ -159,8 +202,12 @@ public class VisionService implements EventListener<FaceDetectionMessage> {
             BatchAnnotateImagesResponse response = client.batchAnnotateImages(requests);
             List<AnnotateImageResponse> responses = response.getResponsesList();
 
+            List<FaceAnnotation> allAnnotations = new ArrayList<>();
             for (AnnotateImageResponse res : responses) {
-                return res.getFaceAnnotationsList();
+                allAnnotations.addAll(res.getFaceAnnotationsList());
+            }
+            if (allAnnotations.isEmpty()) {
+                return Collections.emptyList();
             }
         }
         return Collections.emptyList();

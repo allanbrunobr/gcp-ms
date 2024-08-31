@@ -5,20 +5,20 @@ import com.br.multicloudecore.gcpmodule.exceptions.TranslationException;
 import com.br.multicloudecore.gcpmodule.service.ai.TranslatorService;
 import com.google.cloud.translate.v3.Translation;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * This class represents a controller for handling translation-related requests.
  */
 @RestController
+@CrossOrigin(origins = "http://localhost:3001")
 public class TranslatorController {
 
   private final TranslatorService translatorService;
@@ -57,18 +57,13 @@ public class TranslatorController {
     return ResponseEntity.ok().body(languages);
   }
 
-  /**
-   * Executes the translation of the given text to the specified target language.
-   *
-   * @param textToTranslate The text to be translated.
-   * @param targetLanguageCode The target language code.
-   * @return A ModelAndView object representing the translation result page.
-   */
   @PostMapping("/translatorText")
-  public ModelAndView executeTranslatorText(
-                    @RequestParam("textToTranslate") String textToTranslate,
-                    @RequestParam("targetLanguageCode") String targetLanguageCode) {
-    ModelAndView modelAndView = new ModelAndView("translator/translator-result");
+  public ResponseEntity<Map<String, String>> executeTranslatorText(
+          @RequestBody Map<String, String> request) {
+    String textToTranslate = request.get("textToTranslate");
+    String targetLanguageCode = request.get("targetLanguageCode");
+
+    Map<String, String> response = new HashMap<>();
     StringBuilder translatedTextBuilder = new StringBuilder();
     try {
       CompletableFuture<List<Translation>> translatedTextAsync =
@@ -78,14 +73,14 @@ public class TranslatorController {
       for (Translation translation : translatedTextList) {
         translatedTextBuilder.append(translation.getTranslatedText()).append(" ");
       }
-      modelAndView.addObject("translatedResult", translatedTextBuilder);
+      response.put("translatedResult", translatedTextBuilder.toString().trim());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      throw new TranslationException("Error while waiting for translation to complete", e);
+      response.put("error", "Error while waiting for translation to complete");
     } catch (Exception e) {
-      modelAndView.addObject(Constants.ERROR_VIEW_NAME,
-              "Erro ao traduzir o texto: " + e.getMessage());
+      response.put("error", "Error while translating text: " + e.getMessage());
     }
-    return modelAndView;
+
+    return ResponseEntity.ok(response);
   }
 }
