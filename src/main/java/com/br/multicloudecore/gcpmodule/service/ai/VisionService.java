@@ -2,6 +2,7 @@ package com.br.multicloudecore.gcpmodule.service.ai;
 
 import com.br.multicloudecore.gcpmodule.events.EventBus;
 import com.br.multicloudecore.gcpmodule.exceptions.UploadFileToStorageException;
+import com.br.multicloudecore.gcpmodule.models.vision.facerecognition.FaceData;
 import com.br.multicloudecore.gcpmodule.models.vision.facerecognition.FaceDetectionMessage;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -56,21 +57,39 @@ public class VisionService {
         this.storage = storage;
     }
 
+    public byte[] convertToBytes(MultipartFile file) {
+        try {
+            return file.getBytes();
+        } catch (IOException e) {
+            throw new RuntimeException("Erro ao converter arquivo para byte array", e);
+        }
+    }
+
     public CompletableFuture<FaceDetectionMessage> processImageAndWaitForResult(MultipartFile file) {
         CompletableFuture<FaceDetectionMessage> resultFuture = new CompletableFuture<>();
 
         try {
             String imageUrl = uploadToCloudStorage(file);
 
-            EventBus.Subscription<FaceDetectionMessage> subscription = eventBus.subscribe(FaceDetectionMessage.class, message -> {
-                if (message.getImageUrl().equals(imageUrl)) {
-                    resultFuture.complete(message);
-                    return false;
-                }
-                return true;
-            });
+            EventBus.Subscription<FaceDetectionMessage> subscription = eventBus
+                    .subscribe(FaceDetectionMessage.class, message -> {
+                            if (message.getImageUrl().equals(imageUrl)) {
+                                byte[] imageBytes = convertToBytes(file);
+                                String base64EncodedImage = null;
+                                try {
+                                    base64EncodedImage = writeWithFaces(convertToBytes(file), message.getFacesData());
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
 
-            CompletableFuture.delayedExecutor(30, java.util.concurrent.TimeUnit.SECONDS).execute(() -> {
+                                message.setImageUrl(base64EncodedImage);
+                                resultFuture.complete(message);
+                                return false;
+                            }
+                            return true;
+                        });
+
+            CompletableFuture.delayedExecutor(60, java.util.concurrent.TimeUnit.SECONDS).execute(() -> {
                 if (!resultFuture.isDone()) {
                     resultFuture.completeExceptionally(new java.util.concurrent.TimeoutException("Processing timed out"));
                     subscription.unsubscribe();
@@ -111,33 +130,30 @@ public class VisionService {
         return String.format("https://storage.googleapis.com/%s/%s", bucketName, fileName);
     }
 
-  public String writeWithFaces(byte[] imageBytes, List<FaceAnnotation> faces) throws IOException {
-    BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
-    annotateWithFaces(image, faces);
-    return encodeImageToBase64(image);
-  }
 
-  private void annotateWithFaces(BufferedImage image, List<FaceAnnotation> faces) {
-    for (FaceAnnotation face : faces) {
-      annotateWithFace(image, face);
+    public String writeWithFaces(byte[] imageBytes, List<FaceData> faceDataList) throws IOException {
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
+        for (FaceData faceData : faceDataList) {
+            annotateWithFace(image, faceData);
+        }
+        return encodeImageToBase64(image);
     }
-  }
 
-  private void annotateWithFace(BufferedImage image, FaceAnnotation face) {
-    Graphics2D graphics = image.createGraphics();
-    graphics.setStroke(new BasicStroke(5));
-    graphics.setColor(new Color(0x00ff00));
-    graphics.draw(createPolygonFromVertices(face.getFdBoundingPoly().getVerticesList()));
-    graphics.dispose();
-  }
-
-  private Polygon createPolygonFromVertices(List<Vertex> vertices) {
-    Polygon polygon = new Polygon();
-    for (Vertex vertex : vertices) {
-      polygon.addPoint(vertex.getX(), vertex.getY());
+    private void annotateWithFace(BufferedImage image, FaceData faceData) {
+        Graphics2D graphics = image.createGraphics();
+        graphics.setStroke(new BasicStroke(5));
+        graphics.setColor(new Color(0x00ff00));
+        graphics.draw(createPolygonFromVertices(List.of(faceData.getBoundingPoly().getVertices())));
+        graphics.dispose();
     }
-    return polygon;
-  }
+
+    private Polygon createPolygonFromVertices(List<FaceData.BoundingPoly.Vertex> vertices) {
+        Polygon polygon = new Polygon();
+        for (FaceData.BoundingPoly.Vertex vertex : vertices) {
+            polygon.addPoint((int) vertex.getX(), (int) vertex.getY());
+        }
+        return polygon;
+    }
 
   private String encodeImageToBase64(BufferedImage image) throws IOException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -196,8 +212,7 @@ public class VisionService {
     private void setWindowsFilePermissions(Path tempFile) throws IOException {
         DosFileAttributeView view = Files.getFileAttributeView(tempFile, DosFileAttributeView.class);
         if (view != null) {
-            // Define the desired permissions
-            view.setReadOnly(false); // Set to true if you want the file to be read-only
+            view.setReadOnly(false);
         } else {
             throw new IOException("Failed to set permissions on temp file: " + tempFile);
         }

@@ -42,7 +42,7 @@ public class VisionController {
     try {
       CompletableFuture<FaceDetectionMessage> resultFuture = visionService.processImageAndWaitForResult(file);
 
-      FaceDetectionMessage result = resultFuture.get(35, TimeUnit.SECONDS);
+      FaceDetectionMessage result = resultFuture.get(90, TimeUnit.SECONDS);
       return ResponseEntity.ok(result);
 
     } catch (Exception e) {
