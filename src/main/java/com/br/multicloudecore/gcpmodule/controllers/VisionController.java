@@ -1,16 +1,13 @@
 package com.br.multicloudecore.gcpmodule.controllers;
 
-import com.br.multicloudecore.gcpmodule.utils.Constants;
 import com.br.multicloudecore.gcpmodule.exceptions.PlacesSearchException;
+import com.br.multicloudecore.gcpmodule.models.vision.facerecognition.FaceDetectionMessage;
 import com.br.multicloudecore.gcpmodule.models.vision.landmarks.LandmarkDetectionMessage;
-import com.br.multicloudecore.gcpmodule.security.service.DynamicGCPServiceAccountKeyService;
 import com.br.multicloudecore.gcpmodule.service.ai.VisionService;
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.storage.BlobId;
-import com.google.cloud.storage.BlobInfo;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
+import com.br.multicloudecore.gcpmodule.utils.Constants;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,12 +15,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.ModelAndView;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.Base64;
-import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The VisionController class handles requests related to image processing and detection.
@@ -37,66 +32,22 @@ public class VisionController {
   @Value("${bucket.name}")
   private String bucketName;
 
-  private final DynamicGCPServiceAccountKeyService dynamicGCPServiceAccountKeyService;
-
-
-  /**
-   * Constructs a new VisionController with the specified VisionService.
-   *
-   * @param visionService The VisionService to be used by the controller.
-   */
-  public VisionController(VisionService visionService, DynamicGCPServiceAccountKeyService dynamicGCPServiceAccountKeyService) {
+  public VisionController(VisionService visionService) {
     this.visionService = visionService;
-      this.dynamicGCPServiceAccountKeyService = dynamicGCPServiceAccountKeyService;
   }
 
-  /**
-    * Handles the file upload for vision face detection.
-     * Stores the uploaded file in a Google Cloud Storage bucket and
-    * returns a ModelAndView object for rendering the result page.
-    *
-     * @param file The uploaded file
-     * @param redirectAttributes The redirect attributes for flash messages
-     * @return The ModelAndView object for rendering the result page
-     */
+
   @PostMapping("/uploadFileToVisionFace")
-  public ModelAndView handleFileUploadVisionFace(@RequestParam("file") MultipartFile file,
-                                                   RedirectAttributes redirectAttributes) {
-    String message;
-    ModelAndView modelAndView = new ModelAndView("ai/vision/vision-face-result");
+  public ResponseEntity<?> handleFileUploadVisionFace(@RequestParam("file") MultipartFile file) {
     try {
-      String serviceAccountKey = dynamicGCPServiceAccountKeyService.getGcpServiceAccountKey()
-              .orElseThrow(() -> new RuntimeException("Failed to retrieve GCP service account key from Vault"));
-      byte[] decodedKey = Base64.getDecoder().decode(serviceAccountKey);
+      CompletableFuture<FaceDetectionMessage> resultFuture = visionService.processImageAndWaitForResult(file);
 
-      GoogleCredentials googleCredentials = GoogleCredentials.fromStream(new ByteArrayInputStream(decodedKey))
-              .createScoped("https://www.googleapis.com/auth/cloud-platform");
-
-        Storage storage = StorageOptions.newBuilder()
-              .setCredentials(googleCredentials)
-              .setProjectId("app-springboot-project")
-              .build()
-              .getService();
-
-      String fileName = UUID.randomUUID() + file.getOriginalFilename();
-      BlobId blobId = BlobId.of(bucketName, fileName);
-      BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
-      storage.create(blobInfo, file.getBytes());
-
-      byte[] imageBytes = file.getBytes();
-
-      String base64EncodedImage = visionService.writeWithFaces(imageBytes, visionService.detectFaces(imageBytes));
-
-      message = "Upload do arquivo realizado com sucesso! " + file.getOriginalFilename() + "!";
-      modelAndView.addObject("base64EncodedImage", base64EncodedImage);
-      redirectAttributes.addFlashAttribute("message", message);
-
+      FaceDetectionMessage result = resultFuture.get(35, TimeUnit.SECONDS);
+      return ResponseEntity.ok(result);
 
     } catch (Exception e) {
-      message = "Falha ao fazer upload do arquivo " + file.getOriginalFilename() + "!";
-      redirectAttributes.addFlashAttribute(Constants.ERROR_MESSAGE_ATTRIBUTE, message);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error processing image: " + e.getMessage());
     }
-    return modelAndView;
   }
 
   /**
@@ -129,5 +80,4 @@ public class VisionController {
     return modelAndView;
   }
 }
-
 

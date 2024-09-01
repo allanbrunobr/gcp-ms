@@ -11,9 +11,24 @@ import lombok.Setter;
 @Setter
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class FaceData {
-  private int id;
   private String joyLikelihood;
   private String angerLikelihood;
   private String sorrowLikelihood;
   private String surpriseLikelihood;
+  private float detectionConfidence;
+  private BoundingPoly boundingPoly;
+
+
+  @Getter
+  @Setter
+  public static class BoundingPoly {
+    private Vertex[] vertices;
+
+    @Getter
+    @Setter
+    public static class Vertex {
+      private float x;
+      private float y;
+    }
+  }
 }

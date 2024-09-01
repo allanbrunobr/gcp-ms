@@ -1,44 +1,55 @@
 package com.br.multicloudecore.gcpmodule.events;
 
-import com.br.multicloudecore.gcpmodule.interfaces.EventListener;
+import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Predicate;
 /**
  * EventBus is a simple event bus that allows objects to publish events and subscribe to them.doc
  */
+@Component
 public class EventBus {
-  private Map<Class<?>, List<EventListener<?>>> subscribers;
+  private final Map<Class<?>, CopyOnWriteArrayList<Subscription<?>>> subscribers = new ConcurrentHashMap<>();
 
-  /**
-   * EventBus is a simple event bus that allows objects to publish events and subscribe to them.
-   */
-  public EventBus() {
-    this.subscribers = new HashMap<>();
+  public <T> Subscription<T> subscribe(Class<T> eventType, Predicate<T> handler) {
+    Subscription<T> subscription = new Subscription<>(eventType, handler);
+    subscribers.computeIfAbsent(eventType, k -> new CopyOnWriteArrayList<>()).add(subscription);
+    return subscription;
   }
 
-  public <T> void subscribe(Class<T> eventType, EventListener<T> listener) {
-    subscribers.computeIfAbsent(eventType, k -> new ArrayList<>()).add(listener);
+  public void unsubscribe(Subscription<?> subscription) {
+    subscribers.computeIfPresent(subscription.eventType, (key, list) -> {
+      list.remove(subscription);
+      return list.isEmpty() ? null : list;
+    });
   }
 
-  /**
-   * Publishes an event to all the registered listeners.
-   * The event type is determined by the argument passed to the method.
-   *
-   * @param event the event to be published
-   * @param <T>   the type of the event
-   */
   public <T> void publish(T event) {
-    List<EventListener<?>> listeners = subscribers.get(event.getClass());
-    if (listeners != null) {
-      for (EventListener<?> listener : listeners) {
-        @SuppressWarnings("unchecked")
-        EventListener<T> typedListener = (EventListener<T>) listener;
-        typedListener.onEvent(event);
-      }
+    Class<?> eventType = event.getClass();
+    subscribers.getOrDefault(eventType, new CopyOnWriteArrayList<>()).removeIf(subscription -> {
+      @SuppressWarnings("unchecked")
+      Subscription<T> typedSubscription = (Subscription<T>) subscription;
+      return !typedSubscription.handle(event);
+    });
+  }
+
+  public class Subscription<T> {
+    private final Class<T> eventType;
+    private final Predicate<T> handler;
+
+    Subscription(Class<T> eventType, Predicate<T> handler) {
+      this.eventType = eventType;
+      this.handler = handler;
+    }
+
+    boolean handle(T event) {
+      return handler.test(event);
+    }
+
+    public void unsubscribe() {
+      EventBus.this.unsubscribe(this);
     }
   }
 }

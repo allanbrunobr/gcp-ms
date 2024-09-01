@@ -1,14 +1,11 @@
 package com.br.multicloudecore.gcpmodule.service.ai;
 
 import com.br.multicloudecore.gcpmodule.events.EventBus;
-import com.br.multicloudecore.gcpmodule.exceptions.PlacesSearchException;
 import com.br.multicloudecore.gcpmodule.exceptions.UploadFileToStorageException;
-import com.br.multicloudecore.gcpmodule.interfaces.EventListener;
 import com.br.multicloudecore.gcpmodule.models.vision.facerecognition.FaceDetectionMessage;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
 import com.google.cloud.vision.v1.Image;
 import com.google.cloud.vision.v1.*;
 import com.google.protobuf.ByteString;
@@ -16,7 +13,6 @@ import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -26,7 +22,9 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.*;
+import java.nio.file.attribute.DosFileAttributeView;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -38,13 +36,12 @@ import java.util.concurrent.CompletableFuture;
  * the Google Cloud Vision API.
  */
 @Service
-public class VisionService implements EventListener<FaceDetectionMessage> {
+public class VisionService {
 
     private static final Logger logger = LoggerFactory.getLogger(VisionService.class);
 
-    private EventBus eventBus;
-    private Storage storage;
-    private final SimpMessagingTemplate simpMessagingTemplate;
+    private final EventBus eventBus;
+    private final Storage storage;
 
     @Value("${project.id}")
     private String projectId;
@@ -52,165 +49,66 @@ public class VisionService implements EventListener<FaceDetectionMessage> {
     @Value("${bucket.name}")
     private String bucketName;
 
-    private static final String SECURE_DIR_CREATION_ERROR = "Failed to set directory permissions: ";
 
-
-    /**
-     * Constructs a new VisionService with the specified EventBus and SimpMessagingTemplate.
-     *
-     * @param eventBus              The EventBus to be used by the service.
-     * @param simpMessagingTemplate The SimpMessagingTemplate to be used by the service.
-     */
-    public VisionService(EventBus eventBus, SimpMessagingTemplate simpMessagingTemplate) {
+    public VisionService(EventBus eventBus,
+                         Storage storage) {
         this.eventBus = eventBus;
-        this.simpMessagingTemplate = simpMessagingTemplate;
-        this.eventBus.subscribe(FaceDetectionMessage.class, this);
-        this.storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
+        this.storage = storage;
     }
 
-    /**
-     * Stores the given file in the bucket.
-     *
-     * @param file the file to store
-     */
-
-    public void store(MultipartFile file) {
-        try {
-            String fileName = UUID.randomUUID() + file.getOriginalFilename();
-            BlobId blobId = BlobId.of(bucketName, fileName);
-            BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
-            storage.create(blobInfo, file.getBytes());
-        } catch (IOException e) {
-            throw new UploadFileToStorageException("Error storing file in bucket.", e);
-        }
-    }
-
-
-    /**
-     * Detects landmarks in an image.
-     *
-     * @param file the image file
-     * @return a CompletableFuture with a List of AnnotateImageResponse objects
-     * @throws IOException if there is an error reading the file
-     */
-    public CompletableFuture<List<AnnotateImageResponse>> detectLandmarkImage(
-            MultipartFile file) throws IOException {
-
-        Path tempDir = createSecureTempDirectory();
-        File tempFile = createSecureTempFile(tempDir);
-
-        file.transferTo(tempFile);
-        String filePath = tempFile.getAbsolutePath();
-        List<AnnotateImageResponse> responses = detectLandmarks(filePath);
+    public CompletableFuture<FaceDetectionMessage> processImageAndWaitForResult(MultipartFile file) {
+        CompletableFuture<FaceDetectionMessage> resultFuture = new CompletableFuture<>();
 
         try {
-            Files.delete(tempFile.toPath());
-        } catch (IOException e) {
-            throw new UploadFileToStorageException("Fail to delete temp file: " + tempFile.toPath(), e);
+            String imageUrl = uploadToCloudStorage(file);
+
+            EventBus.Subscription<FaceDetectionMessage> subscription = eventBus.subscribe(FaceDetectionMessage.class, message -> {
+                if (message.getImageUrl().equals(imageUrl)) {
+                    resultFuture.complete(message);
+                    return false;
+                }
+                return true;
+            });
+
+            CompletableFuture.delayedExecutor(30, java.util.concurrent.TimeUnit.SECONDS).execute(() -> {
+                if (!resultFuture.isDone()) {
+                    resultFuture.completeExceptionally(new java.util.concurrent.TimeoutException("Processing timed out"));
+                    subscription.unsubscribe();
+                }
+            });
+
+            logger.info("Waiting for face detection results for image: {}", imageUrl);
+
+        } catch (Exception e) {
+            resultFuture.completeExceptionally(e);
         }
 
-        return CompletableFuture.completedFuture(responses);
+        return resultFuture;
     }
 
-    private Path createSecureTempDirectory() throws IOException {
-        Set<PosixFilePermission> dirPerms = PosixFilePermissions.fromString("rwx------");
-        Path tempDir = Files.createTempDirectory("secure-temp-dir", PosixFilePermissions.asFileAttribute(dirPerms));
-        configureDirectoryPermissions(tempDir);
-        return tempDir;
-    }
-    private void configureDirectoryPermissions(Path tempDir) throws IOException {
-        File tempDirFile = tempDir.toFile();
-
-        if (!SystemUtils.IS_OS_UNIX) {
-            Set<AclEntryPermission> perms = EnumSet.of(AclEntryPermission.READ_ACL, AclEntryPermission.WRITE_ACL);
-            AclEntry.Builder builder = AclEntry.newBuilder();
-            builder.setType(AclEntryType.DENY);
-            builder.setPrincipal(tempDir.getFileSystem().getUserPrincipalLookupService().lookupPrincipalByName("Everyone"));
-            builder.setPermissions(perms);
-            AclEntry aclEntry = builder.build();
-
-            Files.getFileAttributeView(tempDir, AclFileAttributeView.class)
-                    .setAcl(Collections.singletonList(aclEntry));
-        }
-        if (!tempDirFile.setReadable(true, true)) {
-            throw new IOException(SECURE_DIR_CREATION_ERROR + "Failed to set directory as non-readable for others: " + tempDirFile.getAbsolutePath());
-        }
-        if (!tempDirFile.setWritable(true, true)) {
-            throw new IOException(SECURE_DIR_CREATION_ERROR + "Failed to set directory as non-writable for others: " + tempDirFile.getAbsolutePath());
-        }
-        if (!tempDirFile.setExecutable(true, true)) {
-            throw new IOException(SECURE_DIR_CREATION_ERROR + "Failed to set directory as non-executable for others: " + tempDirFile.getAbsolutePath());
-        }
-    }
-
-    private File createSecureTempFile(Path tempDir) throws IOException {
-        Set<PosixFilePermission> filePerms = PosixFilePermissions.fromString("rw-------");
-        return Files.createTempFile(tempDir, "temp", ".jpg", PosixFilePermissions.asFileAttribute(filePerms)).toFile();
-    }
-
-    /**
-     * Handles the FaceDetectionMessage event.
-     *
-     * @param event the FaceDetectionMessage event
-     */
-    @Override
-    public void onEvent(FaceDetectionMessage event) {
-        logger.debug("Mensagem recebida pelo UploadServiceVision: {} ", event.getFacesData());
-        simpMessagingTemplate.convertAndSend("/topic/analysisResult", event.getFacesData());
-    }
-
-    /**
-     * Detects landmarks in an image.
-     *
-     * @param filePath The file path of the image
-     * @return A list of AnnotateImageResponse objects
-     */
-    public List<AnnotateImageResponse> detectLandmarks(String filePath) {
-        List<AnnotateImageRequest> requests = new ArrayList<>();
-        try {
-            FileInputStream fileInputStream = new FileInputStream(filePath);
-            ByteString imgBytes = ByteString.readFrom(fileInputStream);
+    public List<AnnotateImageResponse> detectLandmarks(String filePath) throws IOException {
+        List<AnnotateImageResponse> responses;
+        try (ImageAnnotatorClient vision = ImageAnnotatorClient.create()) {
+            ByteString imgBytes = ByteString.readFrom(new FileInputStream(filePath));
             Image img = Image.newBuilder().setContent(imgBytes).build();
-            Feature feat = Feature.newBuilder().setType(Feature.Type.LANDMARK_DETECTION).build();
-            AnnotateImageRequest request =
-                    AnnotateImageRequest.newBuilder().addFeatures(feat).setImage(img).build();
-            fileInputStream.close();
-            requests.add(request);
-            try (ImageAnnotatorClient client = ImageAnnotatorClient.create()) {
-                BatchAnnotateImagesResponse response = client.batchAnnotateImages(requests);
-                return response.getResponsesList();
-            }
-        } catch (FileNotFoundException e) {
-            throw new PlacesSearchException("File not found: " + filePath, e);
-        } catch (IOException e) {
-            throw new PlacesSearchException("Error detecting landmarks in image.", e);
+            Feature feature = Feature.newBuilder().setType(Feature.Type.LANDMARK_DETECTION).build();
+            AnnotateImageRequest request = AnnotateImageRequest.newBuilder().addFeatures(feature).setImage(img).build();
+            BatchAnnotateImagesResponse response = vision.batchAnnotateImages(Collections.singletonList(request));
+            responses = response.getResponsesList();
         }
+        return responses;
     }
 
-    public List<FaceAnnotation> detectFaces(byte[] imageBytes) throws IOException {
-        List<AnnotateImageRequest> requests = new ArrayList<>();
+    private String uploadToCloudStorage(MultipartFile file) throws IOException {
+        String fileName = UUID.randomUUID() + "-" + file.getOriginalFilename();
+        BlobId blobId = BlobId.of(bucketName, fileName);
+        BlobInfo blobInfo = BlobInfo.newBuilder(blobId)
+                .setContentType(file.getContentType())
+                .build();
 
-        ByteString byteString = ByteString.copyFrom(imageBytes);
+        storage.create(blobInfo, file.getBytes());
 
-        Image img = Image.newBuilder().setContent(byteString).build();
-        Feature feat = Feature.newBuilder().setType(Feature.Type.FACE_DETECTION).build();
-        AnnotateImageRequest request =
-                AnnotateImageRequest.newBuilder().addFeatures(feat).setImage(img).build();
-        requests.add(request);
-
-        try (ImageAnnotatorClient client = ImageAnnotatorClient.create()) {
-            BatchAnnotateImagesResponse response = client.batchAnnotateImages(requests);
-            List<AnnotateImageResponse> responses = response.getResponsesList();
-
-            List<FaceAnnotation> allAnnotations = new ArrayList<>();
-            for (AnnotateImageResponse res : responses) {
-                allAnnotations.addAll(res.getFaceAnnotationsList());
-            }
-            if (allAnnotations.isEmpty()) {
-                return Collections.emptyList();
-            }
-        }
-        return Collections.emptyList();
+        return String.format("https://storage.googleapis.com/%s/%s", bucketName, fileName);
     }
 
   public String writeWithFaces(byte[] imageBytes, List<FaceAnnotation> faces) throws IOException {
@@ -246,4 +144,63 @@ public class VisionService implements EventListener<FaceDetectionMessage> {
     ImageIO.write(image, "jpg", baos);
     return Base64.getEncoder().encodeToString(baos.toByteArray());
   }
+
+
+    /**
+     * Detects landmarks in an image.
+     *
+     * @param file the image file
+     * @return a CompletableFuture with a List of AnnotateImageResponse objects
+     * @throws IOException if there is an error reading the file
+     */
+    public CompletableFuture<List<AnnotateImageResponse>> detectLandmarkImage(
+            MultipartFile file) throws IOException {
+
+        Path tempDir = createSecureTempDirectory();
+        File tempFile = createSecureTempFile(tempDir);
+
+        file.transferTo(tempFile);
+        String filePath = tempFile.getAbsolutePath();
+        List<AnnotateImageResponse> responses = detectLandmarks(filePath);
+
+        try {
+            Files.delete(tempFile.toPath());
+        } catch (IOException e) {
+            throw new UploadFileToStorageException("Fail to delete temp file: " + tempFile.toPath(), e);
+        }
+
+        return CompletableFuture.completedFuture(responses);
+    }
+
+    private Path createSecureTempDirectory() throws IOException {
+        Set<PosixFilePermission> dirPerms = PosixFilePermissions.fromString("rwx------");
+        Path tempDir = Files.createTempDirectory("secure-temp-dir", PosixFilePermissions.asFileAttribute(dirPerms));
+        if (SystemUtils.IS_OS_WINDOWS) {
+            setWindowsDirectoryPermissions(tempDir);
+        }
+        return tempDir;
+    }
+    private void setWindowsDirectoryPermissions(Path tempDir) throws IOException {
+        Set<PosixFilePermission> perms = EnumSet.noneOf(PosixFilePermission.class);
+        Files.setPosixFilePermissions(tempDir, perms);
+    }
+
+    private File createSecureTempFile(Path tempDir) throws IOException {
+        File tempFile = File.createTempFile("secure-temp-file", ".tmp", tempDir.toFile());
+        if (SystemUtils.IS_OS_WINDOWS) {
+            setWindowsFilePermissions(tempFile.toPath());
+        }
+        return tempFile;
+    }
+
+    private void setWindowsFilePermissions(Path tempFile) throws IOException {
+        DosFileAttributeView view = Files.getFileAttributeView(tempFile, DosFileAttributeView.class);
+        if (view != null) {
+            // Define the desired permissions
+            view.setReadOnly(false); // Set to true if you want the file to be read-only
+        } else {
+            throw new IOException("Failed to set permissions on temp file: " + tempFile);
+        }
+    }
+
 }
