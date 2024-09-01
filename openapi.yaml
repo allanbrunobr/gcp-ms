@@ -1,0 +1,21 @@
+swagger: "2.0"
+info:
+  title: My API
+  version: 1.0.0
+paths:
+  /gcp:
+    get:
+      operationId: getGCPData # Unique operationId for GET /gcp
+      x-google-backend:
+        address: https://app-springboot-project.uc.r.appspot.com/
+      responses: # Added responses section
+        200:
+          description: Successful response
+  /aws:
+    get:
+      operationId: getAWSData  # Unique operationId for GET /aws
+      x-aws-backend:
+        address: https://app-springboot-project.uc.r.appspot.com/
+      responses: # Added responses section
+        200:
+          description: Successful response
