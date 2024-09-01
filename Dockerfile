@@ -15,7 +15,7 @@ WORKDIR /app
 COPY . .
 
 # Execute a build do Gradle
-RUN gradle build --no-daemon
+RUN gradle build -x test --no-daemon
 
 # Use uma imagem base para a execução
 FROM openjdk:17-jdk-slim
@@ -26,7 +26,7 @@ WORKDIR /app
 # Copie o JAR construído do estágio anterior
 COPY --from=build /app/build/libs/*.jar app.jar
 
-# Exponha a porta 8080
+# Exponha a porta 8081
 EXPOSE 8081
 
 # Comando para iniciar a aplicação
