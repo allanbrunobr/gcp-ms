@@ -10,6 +10,7 @@ java {
 
 repositories {
     mavenCentral()
+    mavenLocal()
 }
 
 ext {
@@ -28,7 +29,6 @@ dependencies {
     implementation group: 'jakarta.xml.bind', name: 'jakarta.xml.bind-api', version: '4.0.2'
     implementation group: 'org.springframework.boot', name: 'spring-boot-starter-websocket', version: '3.2.3'
     implementation group: 'org.springframework', name: 'spring-messaging', version: '6.1.4'
-    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.17.0-rc1'
     implementation group: 'org.springframework', name: 'spring-websocket', version: '6.1.4'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation group: 'com.google.cloud', name: 'google-cloud-storage', version: '2.34.0'
@@ -42,9 +42,11 @@ dependencies {
     implementation 'com.google.cloud:google-cloud-language'
     implementation 'com.google.api-client:google-api-client:1.31.1'
     implementation 'com.google.oauth-client:google-oauth-client-jetty:1.31.1'
+    implementation group: 'com.google.cloud', name: 'google-cloud-bigquery', version: '2.40.2'
 
     implementation group: 'com.google.auth', name: 'google-auth-library-oauth2-http', version: '1.23.0'
     implementation group: 'com.google.apis', name: 'google-api-services-people', version: 'v1-rev537-1.25.0'
+    implementation group: 'org.apache.commons', name: 'commons-compress', version: '1.26.2'
 
     implementation group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.129.0'
     implementation group: 'com.google.maps', name: 'google-maps-services', version: '2.2.0'
@@ -52,8 +54,26 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-logging'
     implementation 'org.springframework.boot:spring-boot-starter-web'
 
+    implementation group: 'org.springframework.cloud', name: 'spring-cloud-starter-vault-config', version: '4.1.1'
+    implementation 'org.springframework.vault:spring-vault-core'
+
     implementation 'org.slf4j:slf4j-api:2.0.13'
-    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.5.0'
+
+    implementation group: 'org.apache.beam', name: 'beam-sdks-java-core', version: '2.56.0'
+    implementation group: 'org.apache.beam', name: 'beam-runners-google-cloud-dataflow-java', version: '2.56.0'
+    implementation group: 'org.apache.beam', name: 'beam-sdks-java-io-google-cloud-platform', version: '2.56.0'
+    implementation group: 'org.apache.beam', name: 'beam-runners-direct-java', version: '2.56.0'
+
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.15.0'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.0'
+    implementation 'com.fasterxml.jackson.core:jackson-annotations:2.15.0'
+
+    implementation 'ch.qos.logback:logback-core:1.5.0'
+    implementation 'ch.qos.logback:logback-classic:1.5.0'
+
+    testImplementation 'ch.qos.logback:logback-core:1.5.0'
+
+    testImplementation 'ch.qos.logback:logback-classic:1.5.0'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
