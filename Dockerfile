@@ -16,12 +16,11 @@ FROM openjdk:17-jdk-slim
 
 WORKDIR /app
 
-COPY --from=build /app/build/libs/*.jar app.jar
+COPY --from=build /app/build/libs /app/libs
 
 EXPOSE 8081
 
 ENV GOOGLE_APPLICATION_CREDENTIALS=/app/gcp-credentials.json
 ENV SPRING_CLOUD_GCP_PROJECT_ID=app-springboot-project
 
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
-
+ENTRYPOINT ["java", "-jar", "/app/libs/gcp-ms.jar"]
