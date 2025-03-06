@@ -2,7 +2,7 @@ package com.br.multicloudecore.gcpmodule.controllers;
 
 import com.br.multicloudecore.gcpmodule.utils.Constants;
 import com.br.multicloudecore.gcpmodule.exceptions.TranslationException;
-import com.br.multicloudecore.gcpmodule.service.ai.TranslatorService;
+import com.br.multicloudecore.gcpmodule.services.ai.TranslatorService;
 import com.google.cloud.translate.v3.Translation;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +26,8 @@ public class TranslatorController {
   /**
    * Constrói um novo controlador de tradução.
    *
-   * @param translatorService O serviço de tradução a ser utilizado pelo controlador.
+   * @param translatorService O serviço de tradução a ser utilizado pelo
+   *                          controlador.
    */
   public TranslatorController(TranslatorService translatorService) {
     this.translatorService = translatorService;
@@ -44,30 +45,32 @@ public class TranslatorController {
   }
 
   /**
-   *    * This method returns a ResponseEntity object containing a list of supported languages.
+   * * This method returns a ResponseEntity object containing a list of supported
+   * languages.
    * It is responsible for handling the "/languages" endpoint.
    *
    * @return a ResponseEntity object containing a list of supported languages
-   * @throws IOException if an error occurs while retrieving the supported languages
+   * @throws IOException if an error occurs while retrieving the supported
+   *                     languages
    */
   @GetMapping("/languages")
   public ResponseEntity<List<String>> languages() throws IOException {
     List<String> languages = translatorService
-               .getSupportedLanguages();
+        .getSupportedLanguages();
     return ResponseEntity.ok().body(languages);
   }
 
   @PostMapping("/translatorText")
   public ResponseEntity<Map<String, String>> executeTranslatorText(
-          @RequestBody Map<String, String> request) {
+      @RequestBody Map<String, String> request) {
     String textToTranslate = request.get("textToTranslate");
     String targetLanguageCode = request.get("targetLanguageCode");
 
     Map<String, String> response = new HashMap<>();
     StringBuilder translatedTextBuilder = new StringBuilder();
     try {
-      CompletableFuture<List<Translation>> translatedTextAsync =
-              translatorService.translateTextAsync(textToTranslate, targetLanguageCode);
+      CompletableFuture<List<Translation>> translatedTextAsync = translatorService.translateTextAsync(textToTranslate,
+          targetLanguageCode);
       List<Translation> translatedTextList = translatedTextAsync.get();
 
       for (Translation translation : translatedTextList) {
