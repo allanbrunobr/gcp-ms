@@ -2,7 +2,7 @@ package com.br.multicloudecore.gcpmodule.controllers;
 
 import com.br.multicloudecore.gcpmodule.exceptions.SentimentAnalysisException;
 import com.br.multicloudecore.gcpmodule.models.sentiment.SentimentDescription;
-import com.br.multicloudecore.gcpmodule.service.ai.AnalyzeSentimentService;
+import com.br.multicloudecore.gcpmodule.services.ai.AnalyzeSentimentService;
 import com.google.cloud.language.v2.Sentiment;
 import lombok.Getter;
 import lombok.Setter;
